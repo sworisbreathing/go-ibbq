@@ -49,7 +49,7 @@ func (ibbq *Ibbq) Connect(done chan struct{}) error {
 			fmt.Println(client.Addr())
 			ibbq.client = client
 			fmt.Println("Setting up disconnect handler")
-			go ibbq.disconnectHandler(done)
+			go ibbq.disconnectHandler(done)()
 			err = ibbq.discoverProfile()
 		}
 		if err == nil {
