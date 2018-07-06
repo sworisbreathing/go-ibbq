@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-ble/ble"
 )
@@ -24,32 +25,47 @@ func NewIbbq(ctx context.Context) (ibbq Ibbq, err error) {
 	return Ibbq{ctx, d, nil, nil}, err
 }
 
-func (ibbq *Ibbq) disconnectHandler() func() {
+func (ibbq *Ibbq) disconnectHandler(done chan struct{}) func() {
 	return func() {
+		fmt.Println("waiting for disconnect")
 		<-ibbq.client.Disconnected()
 		fmt.Printf("\n%s disconnected\n", ibbq.client.Addr().String())
 		ibbq.client = nil
 		ibbq.profile = nil
+		close(done)
 	}
 }
 
 // Connect connects to an ibbq
-func (ibbq *Ibbq) Connect() error {
+func (ibbq *Ibbq) Connect(done chan struct{}) error {
 	var client ble.Client
 	var err error
-	if client, err = ble.Connect(ibbq.ctx, filter()); err == nil {
-		fmt.Print("Connected to device: ")
-		fmt.Println(client.Addr())
-		ibbq.client = client
-		fmt.Println("Setting up disconnect handler")
-		go ibbq.disconnectHandler()
-		err = ibbq.discoverProfile()
-	}
-	if err == nil {
-		err = ibbq.login()
-	}
-	if err == nil {
-		err = ibbq.subscribeToRealTimeData()
+	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, 15*time.Second)
+	defer cancel()
+	c := make(chan struct{})
+	go func() {
+		if client, err = ble.Connect(timeoutContext, filter()); err == nil {
+			fmt.Print("Connected to device: ")
+			fmt.Println(client.Addr())
+			ibbq.client = client
+			fmt.Println("Setting up disconnect handler")
+			go ibbq.disconnectHandler(done)
+			err = ibbq.discoverProfile()
+		}
+		if err == nil {
+			err = ibbq.login()
+		}
+		if err == nil {
+			err = ibbq.subscribeToRealTimeData()
+		}
+		close(c)
+	}()
+	select {
+	case <-timeoutContext.Done():
+		fmt.Println("done connecting")
+		err = timeoutContext.Err()
+	case err := <-c:
+		fmt.Println(err)
 	}
 	return err
 }
@@ -112,7 +128,9 @@ func (ibbq *Ibbq) Disconnect() error {
 	if ibbq.client == nil {
 		err = errors.New("Not connected")
 	} else {
+		fmt.Println("Disconnecting")
 		err = ibbq.client.CancelConnection()
+		fmt.Println("Disconnected")
 	}
 	return err
 }

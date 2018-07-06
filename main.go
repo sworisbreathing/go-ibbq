@@ -25,10 +25,17 @@ func main() {
 	}
 	fmt.Println("instantiated ibbq struct")
 	fmt.Println("connecting to device")
-	if err = bbq.Connect(); err != nil {
+	done := make(chan struct{})
+	if err = bbq.Connect(done); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
 	fmt.Println("Connected to device")
 	<-ctx.Done()
+	if err = bbq.Disconnect(); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+	fmt.Println("waiting for device to send disconnect signal")
+	<-done
 }
