@@ -25,7 +25,7 @@ func NewIbbq(ctx context.Context) (ibbq Ibbq, err error) {
 	return Ibbq{ctx, d, nil, nil}, err
 }
 
-func (ibbq *Ibbq) disconnectHandler(done chan struct{}) func() {
+func (ibbq *Ibbq) disconnectHandler(done chan struct{}, cancelFunc func()) func() {
 	return func() {
 		fmt.Println("waiting for disconnect")
 		<-ibbq.client.Disconnected()
@@ -33,11 +33,12 @@ func (ibbq *Ibbq) disconnectHandler(done chan struct{}) func() {
 		ibbq.client = nil
 		ibbq.profile = nil
 		close(done)
+		cancelFunc()
 	}
 }
 
 // Connect connects to an ibbq
-func (ibbq *Ibbq) Connect(done chan struct{}) error {
+func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 	var client ble.Client
 	var err error
 	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, 15*time.Second)
@@ -49,7 +50,7 @@ func (ibbq *Ibbq) Connect(done chan struct{}) error {
 			fmt.Println(client.Addr())
 			ibbq.client = client
 			fmt.Println("Setting up disconnect handler")
-			go ibbq.disconnectHandler(done)()
+			go ibbq.disconnectHandler(done, cancelFunc)()
 			err = ibbq.discoverProfile()
 		}
 		if err == nil {
