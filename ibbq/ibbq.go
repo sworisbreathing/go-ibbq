@@ -63,7 +63,7 @@ func (ibbq *Ibbq) Connect(done chan struct{}) error {
 	}()
 	select {
 	case <-timeoutContext.Done():
-		fmt.Println("done connecting")
+		fmt.Println("timeout while connecting")
 		err = timeoutContext.Err()
 	case err := <-c:
 		if err != nil {
