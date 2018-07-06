@@ -42,7 +42,7 @@ func (ibbq *Ibbq) Connect(done chan struct{}) error {
 	var err error
 	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, 15*time.Second)
 	defer cancel()
-	c := make(chan struct{})
+	c := make(chan interface{})
 	go func() {
 		if client, err = ble.Connect(timeoutContext, filter()); err == nil {
 			fmt.Print("Connected to device: ")
@@ -58,6 +58,7 @@ func (ibbq *Ibbq) Connect(done chan struct{}) error {
 		if err == nil {
 			err = ibbq.subscribeToRealTimeData()
 		}
+		c <- err
 		close(c)
 	}()
 	select {
@@ -65,7 +66,12 @@ func (ibbq *Ibbq) Connect(done chan struct{}) error {
 		fmt.Println("done connecting")
 		err = timeoutContext.Err()
 	case err := <-c:
-		fmt.Println(err)
+		if err != nil {
+			fmt.Print("Error received while connecting: ")
+			fmt.Println(err)
+		} else {
+			fmt.Println("connected (I think)")
+		}
 	}
 	return err
 }
