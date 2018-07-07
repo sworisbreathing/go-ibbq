@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,19 +13,29 @@ import (
 
 // Ibbq is an instance of the thermometer
 type Ibbq struct {
-	ctx        context.Context
-	device     ble.Device
-	done       chan struct{}
-	cancelFunc func()
-	client     ble.Client
-	profile    *ble.Profile
+	ctx                         context.Context
+	device                      ble.Device
+	done                        chan struct{}
+	cancelFunc                  func()
+	temperatureReceivedHandler  TemperatureReceivedHandler
+	batteryLevelReceivedHandler BatteryLevelReceivedHandler
+	client                      ble.Client
+	profile                     *ble.Profile
 }
 
+// TemperatureReceivedHandler is a callback for temperature readings.
+// All temperature readings are returned in celsius.
+type TemperatureReceivedHandler func([]float64)
+
+// BatteryLevelReceivedHandler is a callback for battery readings.
+// All battery readings are returned as percentages.
+type BatteryLevelReceivedHandler func(int)
+
 // NewIbbq creates a new Ibbq
-func NewIbbq(ctx context.Context, done chan struct{}, cancelFunc func()) (ibbq Ibbq, err error) {
+func NewIbbq(ctx context.Context, done chan struct{}, cancelFunc func(), temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler) (ibbq Ibbq, err error) {
 	d, err := NewDevice("default")
 	ble.SetDefaultDevice(d)
-	return Ibbq{ctx, d, done, cancelFunc, nil, nil}, err
+	return Ibbq{ctx, d, done, cancelFunc, temperatureReceivedHandler, batteryLevelReceivedHandler, nil, nil}, err
 }
 
 func (ibbq *Ibbq) disconnectHandler() {
@@ -137,9 +146,14 @@ func (ibbq *Ibbq) subscribeToRealTimeData() error {
 func (ibbq *Ibbq) realTimeDataReceived() ble.NotificationHandler {
 	return func(data []byte) {
 		logger.Debug("received real-time data", hex.EncodeToString(data))
-		probe1 := float64(binary.LittleEndian.Uint16(data[0:2])) / 10
-		probe2 := float64(binary.LittleEndian.Uint16(data[2:4])) / 10
-		logger.Info("Temperature received", "probe1", probe1, "probe2", probe2)
+		probeCount := len(data) / 2
+		probeData := make([]float64, probeCount)
+		for i := range data {
+			if i%2 == 0 {
+				probeData[i/2] = float64(binary.LittleEndian.Uint16(data[i:i+2])) / 10
+			}
+		}
+		go ibbq.temperatureReceivedHandler(probeData)
 	}
 }
 
@@ -201,7 +215,7 @@ func (ibbq *Ibbq) settingResultReceived() ble.NotificationHandler {
 				maxVoltage = 6550
 			}
 			batteryPct := 100 * currentVoltage / maxVoltage
-			logger.Info("Battery data", "currentVoltage", strconv.Itoa(currentVoltage), "maxVoltage", strconv.Itoa(maxVoltage), "batteryPct", batteryPct)
+			go ibbq.batteryLevelReceivedHandler(batteryPct)
 		}
 	}
 }

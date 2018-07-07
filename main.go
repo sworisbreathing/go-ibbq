@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strconv"
 
 	"github.com/go-ble/ble"
 	"github.com/mgutz/logxi/v1"
@@ -22,7 +23,13 @@ func main() {
 	var bbq ibbq.Ibbq
 	logger.Debug("instantiating ibbq struct")
 	done := make(chan struct{})
-	if bbq, err = ibbq.NewIbbq(ctx, done, cancel); err != nil {
+	temperatureReceived := func(temperatures []float64) {
+		logger.Info("Received temperature data", "temperatures", temperatures)
+	}
+	batteryLevelReceived := func(batteryLevel int) {
+		logger.Info("Received battery data", "batteryPct", strconv.Itoa(batteryLevel))
+	}
+	if bbq, err = ibbq.NewIbbq(ctx, done, cancel, temperatureReceived, batteryLevelReceived); err != nil {
 		logger.Fatal("Error creating iBBQ", "err", err)
 		os.Exit(-1)
 	}
