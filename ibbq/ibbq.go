@@ -165,7 +165,7 @@ func (ibbq *Ibbq) subscribeToHistoryData() error {
 
 func (ibbq *Ibbq) historyDataReceived() ble.NotificationHandler {
 	return func(data []byte) {
-		logger.Info("received history data", data)
+		logger.Info("received history data", hex.EncodeToString(data))
 	}
 }
 
@@ -191,7 +191,7 @@ func (ibbq *Ibbq) subscribeToSettingResults() error {
 
 func (ibbq *Ibbq) settingResultReceived() ble.NotificationHandler {
 	return func(data []byte) {
-		logger.Info("received setting result:", data)
+		logger.Info("received setting result:", hex.EncodeToString(data))
 	}
 }
 
