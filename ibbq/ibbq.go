@@ -183,16 +183,21 @@ func (ibbq *Ibbq) settingResultReceived() ble.NotificationHandler {
 }
 
 func (ibbq *Ibbq) enableRealTimeData() error {
+	logger.Info("Enabling real-time data sending")
+	err := ibbq.writeSetting(realTimeDataEnable)
+	if err == nil {
+		logger.Info("Enabled real-time data sending")
+	}
+	return err
+}
+
+func (ibbq *Ibbq) writeSetting(settingValue []byte) error {
 	var err error
 	var uuid ble.UUID
-	logger.Info("Enabling real-time data sending")
 	if uuid, err = ble.Parse(SettingData); err == nil {
 		characteristic := ble.NewCharacteristic(uuid)
 		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
-			err = ibbq.client.WriteCharacteristic(c, realTimeDataEnable, false)
-			if err == nil {
-				logger.Info("Enabled real-time data sending")
-			}
+			err = ibbq.client.WriteCharacteristic(c, settingValue, false)
 		} else {
 			err = errors.New("Can't find characteristic for settings data")
 		}
