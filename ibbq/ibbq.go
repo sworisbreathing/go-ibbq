@@ -55,7 +55,7 @@ func (ibbq *Ibbq) Disconnected() chan struct{} {
 func (ibbq *Ibbq) Connect() error {
 	var client ble.Client
 	var err error
-	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, 15*time.Second)
+	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, 60*time.Second)
 	defer cancel()
 	c := make(chan interface{})
 	logger.Info("Connecting to device")
