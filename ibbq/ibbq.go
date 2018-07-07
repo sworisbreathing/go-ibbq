@@ -55,10 +55,10 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 			err = ibbq.login()
 		}
 		if err == nil {
-			err = ibbq.configureTemperatureCelsius()
+			err = ibbq.subscribeToSettingResults()
 		}
 		if err == nil {
-			err = ibbq.subscribeToSettingResults()
+			err = ibbq.configureTemperatureCelsius()
 		}
 		if err == nil {
 			err = ibbq.subscribeToRealTimeData()
