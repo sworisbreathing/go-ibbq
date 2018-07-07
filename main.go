@@ -28,7 +28,7 @@ func main() {
 	batteryLevelReceived := func(batteryLevel int) {
 		logger.Info("Received battery data", "batteryPct", strconv.Itoa(batteryLevel))
 	}
-	if bbq, err = ibbq.NewIbbq(ctx, cancel, temperatureReceived, batteryLevelReceived); err != nil {
+	if bbq, err = ibbq.NewIbbq(ctx, temperatureReceived, batteryLevelReceived); err != nil {
 		logger.Fatal("Error creating iBBQ", "err", err)
 		os.Exit(-1)
 	}
@@ -46,4 +46,5 @@ func main() {
 	}
 	logger.Debug("waiting for device to send disconnect signal")
 	<-bbq.Disconnected()
+	cancel()
 }

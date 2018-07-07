@@ -15,7 +15,6 @@ import (
 type Ibbq struct {
 	ctx                         context.Context
 	device                      ble.Device
-	cancelFunc                  func()
 	temperatureReceivedHandler  TemperatureReceivedHandler
 	batteryLevelReceivedHandler BatteryLevelReceivedHandler
 	client                      ble.Client
@@ -32,10 +31,10 @@ type TemperatureReceivedHandler func([]float64)
 type BatteryLevelReceivedHandler func(int)
 
 // NewIbbq creates a new Ibbq
-func NewIbbq(ctx context.Context, cancelFunc func(), temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler) (ibbq Ibbq, err error) {
+func NewIbbq(ctx context.Context, temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler) (ibbq Ibbq, err error) {
 	d, err := NewDevice("default")
 	ble.SetDefaultDevice(d)
-	return Ibbq{ctx, d, cancelFunc, temperatureReceivedHandler, batteryLevelReceivedHandler, nil, nil, nil}, err
+	return Ibbq{ctx, d, temperatureReceivedHandler, batteryLevelReceivedHandler, nil, nil, nil}, err
 }
 
 func (ibbq *Ibbq) disconnectHandler() {
@@ -45,7 +44,6 @@ func (ibbq *Ibbq) disconnectHandler() {
 	ibbq.client = nil
 	ibbq.profile = nil
 	close(ibbq.disconnected)
-	ibbq.cancelFunc()
 }
 
 // Disconnected gets the disconnected channel
