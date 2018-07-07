@@ -14,33 +14,33 @@ import (
 
 // Ibbq is an instance of the thermometer
 type Ibbq struct {
-	ctx     context.Context
-	device  ble.Device
-	client  ble.Client
-	profile *ble.Profile
+	ctx        context.Context
+	device     ble.Device
+	done       chan struct{}
+	cancelFunc func()
+	client     ble.Client
+	profile    *ble.Profile
 }
 
 // NewIbbq creates a new Ibbq
-func NewIbbq(ctx context.Context) (ibbq Ibbq, err error) {
+func NewIbbq(ctx context.Context, done chan struct{}, cancelFunc func()) (ibbq Ibbq, err error) {
 	d, err := NewDevice("default")
 	ble.SetDefaultDevice(d)
-	return Ibbq{ctx, d, nil, nil}, err
+	return Ibbq{ctx, d, done, cancelFunc, nil, nil}, err
 }
 
-func (ibbq *Ibbq) disconnectHandler(done chan struct{}, cancelFunc func()) func() {
-	return func() {
-		logger.Debug("waiting for disconnect")
-		<-ibbq.client.Disconnected()
-		logger.Debug(ibbq.client.Addr().String(), "disconnected")
-		ibbq.client = nil
-		ibbq.profile = nil
-		close(done)
-		cancelFunc()
-	}
+func (ibbq *Ibbq) disconnectHandler() {
+	logger.Debug("waiting for disconnect")
+	<-ibbq.client.Disconnected()
+	logger.Info("Disconnected", "addr", ibbq.client.Addr().String())
+	ibbq.client = nil
+	ibbq.profile = nil
+	close(ibbq.done)
+	ibbq.cancelFunc()
 }
 
 // Connect connects to an ibbq
-func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
+func (ibbq *Ibbq) Connect() error {
 	var client ble.Client
 	var err error
 	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, 15*time.Second)
@@ -51,7 +51,7 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 			logger.Info("Connected to device:", client.Addr())
 			ibbq.client = client
 			logger.Info("Setting up disconnect handler")
-			go ibbq.disconnectHandler(done, cancelFunc)()
+			go ibbq.disconnectHandler()
 			err = ibbq.discoverProfile()
 		}
 		if err == nil {
@@ -73,7 +73,7 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 			err = ibbq.enableRealTimeData()
 		}
 		if err == nil {
-			err = ibbq.enableBatteryData(done)
+			err = ibbq.enableBatteryData()
 		}
 		c <- err
 		close(c)
@@ -214,7 +214,7 @@ func (ibbq *Ibbq) enableRealTimeData() error {
 	return err
 }
 
-func (ibbq *Ibbq) enableBatteryData(done chan struct{}) error {
+func (ibbq *Ibbq) enableBatteryData() error {
 	logger.Info("Enabling battery data sending")
 	var err error
 	if err = ibbq.writeSetting(batteryLevel); err == nil {
@@ -230,7 +230,7 @@ func (ibbq *Ibbq) enableBatteryData(done chan struct{}) error {
 						ticker.Stop()
 						return
 					}
-				case <-done:
+				case <-ibbq.done:
 					ticker.Stop()
 					return
 				}
@@ -280,7 +280,6 @@ func (ibbq *Ibbq) Disconnect() error {
 	} else {
 		logger.Info("Disconnecting")
 		err = ibbq.client.CancelConnection()
-		logger.Info("Disconnected")
 	}
 	return err
 }

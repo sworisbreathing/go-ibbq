@@ -21,14 +21,14 @@ func main() {
 	logger.Info("context initialized")
 	var bbq ibbq.Ibbq
 	logger.Info("instantiating ibbq struct")
-	if bbq, err = ibbq.NewIbbq(ctx); err != nil {
+	done := make(chan struct{})
+	if bbq, err = ibbq.NewIbbq(ctx, done, cancel); err != nil {
 		logger.Fatal("fatal", err)
 		os.Exit(-1)
 	}
 	logger.Info("instantiated ibbq struct")
 	logger.Info("connecting to device")
-	done := make(chan struct{})
-	if err = bbq.Connect(done, cancel); err != nil {
+	if err = bbq.Connect(); err != nil {
 		logger.Fatal("fatal", err)
 		os.Exit(-1)
 	}
