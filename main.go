@@ -31,11 +31,11 @@ func main() {
 		logger.Fatal("Error creating iBBQ", "err", err)
 	}
 	logger.Debug("instantiated ibbq struct")
-	logger.Debug("connecting to device")
+	logger.Info("Connecting to device")
 	if err = bbq.Connect(); err != nil {
 		logger.Fatal("Error connecting to device", "err", err)
 	}
-	logger.Debug("Connected to device")
+	logger.Info("Connected to device")
 	<-ctx.Done()
 	if err = bbq.Disconnect(); err != nil {
 		logger.Fatal("Error disconnecting from device", "err", err)
