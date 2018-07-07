@@ -11,6 +11,13 @@ import (
 
 var logger = log.New("main")
 
+func temperatureReceived(temperatures []float64) {
+	logger.Info("Received temperature data", "temperatures", temperatures)
+}
+func batteryLevelReceived(batteryLevel int) {
+	logger.Info("Received battery data", "batteryPct", strconv.Itoa(batteryLevel))
+}
+
 func main() {
 	var err error
 	logger.Debug("initializing context")
@@ -21,12 +28,6 @@ func main() {
 	logger.Debug("context initialized")
 	var bbq ibbq.Ibbq
 	logger.Debug("instantiating ibbq struct")
-	temperatureReceived := func(temperatures []float64) {
-		logger.Info("Received temperature data", "temperatures", temperatures)
-	}
-	batteryLevelReceived := func(batteryLevel int) {
-		logger.Info("Received battery data", "batteryPct", strconv.Itoa(batteryLevel))
-	}
 	if bbq, err = ibbq.NewIbbq(ctx, temperatureReceived, batteryLevelReceived); err != nil {
 		logger.Fatal("Error creating iBBQ", "err", err)
 	}
