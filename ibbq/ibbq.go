@@ -55,7 +55,16 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 			err = ibbq.login()
 		}
 		if err == nil {
+			err = ibbq.subscribeToSettingResults()
+		}
+		if err == nil {
 			err = ibbq.subscribeToRealTimeData()
+		}
+		if err == nil {
+			err = ibbq.subscribeToHistoryData()
+		}
+		if err == nil {
+			err = ibbq.enableRealTimeData()
 		}
 		c <- err
 		close(c)
@@ -119,6 +128,76 @@ func (ibbq *Ibbq) realTimeDataReceived() ble.NotificationHandler {
 	return func(data []byte) {
 		logger.Info("received real-time data", data)
 	}
+}
+
+func (ibbq *Ibbq) subscribeToHistoryData() error {
+	var err error
+	var uuid ble.UUID
+	logger.Info("Subscribing to history data")
+	if uuid, err = ble.Parse(HistoryData); err == nil {
+		characteristic := ble.NewCharacteristic(uuid)
+		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
+			err = ibbq.client.Subscribe(c, false, ibbq.historyDataReceived())
+			if err == nil {
+				logger.Info("subscribed")
+			} else {
+				logger.Error("error subscribing:", err)
+			}
+		} else {
+			err = errors.New("can't find characteristic for history data")
+		}
+	}
+	return err
+}
+
+func (ibbq *Ibbq) historyDataReceived() ble.NotificationHandler {
+	return func(data []byte) {
+		logger.Info("received history data", data)
+	}
+}
+
+func (ibbq *Ibbq) subscribeToSettingResults() error {
+	var err error
+	var uuid ble.UUID
+	logger.Info("Subscribing to setting results")
+	if uuid, err = ble.Parse(SettingResult); err == nil {
+		characteristic := ble.NewCharacteristic(uuid)
+		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
+			err = ibbq.client.Subscribe(c, false, ibbq.settingResultReceived())
+			if err == nil {
+				logger.Info("subscribed")
+			} else {
+				logger.Error("error subscribing:", err)
+			}
+		} else {
+			err = errors.New("can't find characteristic for setting results")
+		}
+	}
+	return err
+}
+
+func (ibbq *Ibbq) settingResultReceived() ble.NotificationHandler {
+	return func(data []byte) {
+		logger.Info("received setting result:", data)
+	}
+}
+
+func (ibbq *Ibbq) enableRealTimeData() error {
+	var err error
+	var uuid ble.UUID
+	logger.Info("Enabling real-time data sending")
+	if uuid, err = ble.Parse(SettingData); err == nil {
+		characteristic := ble.NewCharacteristic(uuid)
+		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
+			err = ibbq.client.WriteCharacteristic(c, realTimeDataEnable, false)
+			if err == nil {
+				logger.Info("Enabled real-time data sending")
+			}
+		} else {
+			err = errors.New("Can't find characteristic for settings data")
+		}
+	}
+	return err
 }
 
 // Disconnect disconnects from an ibbq
