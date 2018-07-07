@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"os"
 	"strconv"
 
 	"github.com/go-ble/ble"
@@ -30,19 +29,16 @@ func main() {
 	}
 	if bbq, err = ibbq.NewIbbq(ctx, temperatureReceived, batteryLevelReceived); err != nil {
 		logger.Fatal("Error creating iBBQ", "err", err)
-		os.Exit(-1)
 	}
 	logger.Debug("instantiated ibbq struct")
 	logger.Debug("connecting to device")
 	if err = bbq.Connect(); err != nil {
 		logger.Fatal("Error connecting to device", "err", err)
-		os.Exit(-1)
 	}
 	logger.Debug("Connected to device")
 	<-ctx.Done()
 	if err = bbq.Disconnect(); err != nil {
 		logger.Fatal("Error disconnecting from device", "err", err)
-		os.Exit(-1)
 	}
 	logger.Debug("waiting for device to send disconnect signal")
 	<-bbq.Disconnected()
