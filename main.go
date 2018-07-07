@@ -2,40 +2,42 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/go-ble/ble"
+	"github.com/mgutz/logxi/v1"
 	"github.com/sworisbreathing/go-iBBQ/ibbq"
 )
 
+var logger = log.New("main")
+
 func main() {
 	var err error
-	fmt.Println("initializing context")
+	logger.Info("initializing context")
 	ctx1, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	registerInterruptHandler(cancel)
 	ctx := ble.WithSigHandler(ctx1, cancel)
-	fmt.Println("context initialized")
+	logger.Info("context initialized")
 	var bbq ibbq.Ibbq
-	fmt.Println("instantiating ibbq struct")
+	logger.Info("instantiating ibbq struct")
 	if bbq, err = ibbq.NewIbbq(ctx); err != nil {
-		fmt.Println(err)
+		logger.Fatal("fatal", err)
 		os.Exit(-1)
 	}
-	fmt.Println("instantiated ibbq struct")
-	fmt.Println("connecting to device")
+	logger.Info("instantiated ibbq struct")
+	logger.Info("connecting to device")
 	done := make(chan struct{})
 	if err = bbq.Connect(done, cancel); err != nil {
-		fmt.Println(err)
+		logger.Fatal("fatal", err)
 		os.Exit(-1)
 	}
-	fmt.Println("Connected to device")
+	logger.Info("Connected to device")
 	<-ctx.Done()
 	if err = bbq.Disconnect(); err != nil {
-		fmt.Println(err)
+		logger.Fatal("fatal", err)
 		os.Exit(-1)
 	}
-	fmt.Println("waiting for device to send disconnect signal")
+	logger.Info("waiting for device to send disconnect signal")
 	<-done
 }

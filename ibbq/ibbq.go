@@ -3,7 +3,6 @@ package ibbq
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -27,9 +26,9 @@ func NewIbbq(ctx context.Context) (ibbq Ibbq, err error) {
 
 func (ibbq *Ibbq) disconnectHandler(done chan struct{}, cancelFunc func()) func() {
 	return func() {
-		fmt.Println("waiting for disconnect")
+		logger.Debug("waiting for disconnect")
 		<-ibbq.client.Disconnected()
-		fmt.Printf("\n%s disconnected\n", ibbq.client.Addr().String())
+		logger.Debug(ibbq.client.Addr().String(), "disconnected")
 		ibbq.client = nil
 		ibbq.profile = nil
 		close(done)
@@ -46,10 +45,9 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 	c := make(chan interface{})
 	go func() {
 		if client, err = ble.Connect(timeoutContext, filter()); err == nil {
-			fmt.Print("Connected to device: ")
-			fmt.Println(client.Addr())
+			logger.Info("Connected to device:", client.Addr())
 			ibbq.client = client
-			fmt.Println("Setting up disconnect handler")
+			logger.Info("Setting up disconnect handler")
 			go ibbq.disconnectHandler(done, cancelFunc)()
 			err = ibbq.discoverProfile()
 		}
@@ -64,14 +62,11 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 	}()
 	select {
 	case <-timeoutContext.Done():
-		fmt.Println("timeout while connecting")
+		logger.Error("timeout while connecting")
 		err = timeoutContext.Err()
 	case err := <-c:
 		if err != nil {
-			fmt.Print("Error received while connecting: ")
-			fmt.Println(err)
-		} else {
-			fmt.Println("connected (I think)")
+			logger.Error("Error received while connecting:", err)
 		}
 	}
 	return err
@@ -90,12 +85,11 @@ func (ibbq *Ibbq) login() error {
 	var err error
 	var uuid ble.UUID
 	if uuid, err = ble.Parse(AccountAndVerify); err == nil {
-		fmt.Print("logging in to ")
-		fmt.Println(uuid)
+		logger.Info("logging in to", uuid)
 		characteristic := ble.NewCharacteristic(uuid)
 		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
 			err = ibbq.client.WriteCharacteristic(c, Credentials, false)
-			fmt.Println("credentials written")
+			logger.Debug("credentials written")
 		}
 	}
 	return err
@@ -104,16 +98,15 @@ func (ibbq *Ibbq) login() error {
 func (ibbq *Ibbq) subscribeToRealTimeData() error {
 	var err error
 	var uuid ble.UUID
-	fmt.Println("Subscribing to real-time data")
+	logger.Info("Subscribing to real-time data")
 	if uuid, err = ble.Parse(RealTimeData); err == nil {
 		characteristic := ble.NewCharacteristic(uuid)
 		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
 			err = ibbq.client.Subscribe(c, false, ibbq.realTimeDataReceived())
 			if err == nil {
-				fmt.Println("subscribed")
+				logger.Info("subscribed")
 			} else {
-				fmt.Print("error subscribing: ")
-				fmt.Println(err)
+				logger.Error("error subscribing:", err)
 			}
 		} else {
 			err = errors.New("can't find characteristic for real-time data")
@@ -124,8 +117,7 @@ func (ibbq *Ibbq) subscribeToRealTimeData() error {
 
 func (ibbq *Ibbq) realTimeDataReceived() ble.NotificationHandler {
 	return func(data []byte) {
-		fmt.Print("received real-time data ")
-		fmt.Println(data)
+		logger.Info("received real-time data", data)
 	}
 }
 
@@ -135,9 +127,9 @@ func (ibbq *Ibbq) Disconnect() error {
 	if ibbq.client == nil {
 		err = errors.New("Not connected")
 	} else {
-		fmt.Println("Disconnecting")
+		logger.Info("Disconnecting")
 		err = ibbq.client.CancelConnection()
-		fmt.Println("Disconnected")
+		logger.Info("Disconnected")
 	}
 	return err
 }
@@ -151,22 +143,18 @@ func filter() ble.AdvFilter {
 func advHandler() ble.AdvHandler {
 	return func(a ble.Advertisement) {
 		if a.Connectable() {
-			fmt.Printf("[%s] C %3d:", a.Addr(), a.RSSI())
+			logger.Debug("[", a.Addr(), "] C", a.RSSI())
 		} else {
-			fmt.Printf("[%s] N %3d:", a.Addr(), a.RSSI())
+			logger.Debug("[", a.Addr(), "] N ", a.RSSI())
 		}
-		comma := ""
 		if len(a.LocalName()) > 0 {
-			fmt.Printf(" Name: %s", a.LocalName())
-			comma = ","
+			logger.Debug(" Name:", a.LocalName())
 		}
 		if len(a.Services()) > 0 {
-			fmt.Printf("%s Svcs: %v", comma, a.Services())
-			comma = ","
+			logger.Debug("Svcs:", a.Services())
 		}
 		if len(a.ManufacturerData()) > 0 {
-			fmt.Printf("%s MD: %X", comma, a.ManufacturerData())
+			logger.Debug("MD:", a.ManufacturerData())
 		}
-		fmt.Printf("\n")
 	}
 }
