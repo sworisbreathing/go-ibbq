@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -70,6 +71,9 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 		}
 		if err == nil {
 			err = ibbq.enableRealTimeData()
+		}
+		if err == nil {
+			err = ibbq.enableBatteryData()
 		}
 		c <- err
 		close(c)
@@ -187,6 +191,17 @@ func (ibbq *Ibbq) subscribeToSettingResults() error {
 func (ibbq *Ibbq) settingResultReceived() ble.NotificationHandler {
 	return func(data []byte) {
 		logger.Info("received setting result:", hex.EncodeToString(data))
+		switch data[0] {
+		case 0x24:
+			// battery
+			currentVoltage := int(binary.LittleEndian.Uint16(data[1:3]))
+			maxVoltage := int(binary.LittleEndian.Uint16(data[3:5]))
+			if maxVoltage == 0 {
+				maxVoltage = 6550
+			}
+			batteryPct := 100 * currentVoltage / maxVoltage
+			logger.Info("Battery data", "currentVoltage", strconv.Itoa(currentVoltage), "maxVoltage", strconv.Itoa(maxVoltage), "batteryPct", batteryPct)
+		}
 	}
 }
 
@@ -195,6 +210,15 @@ func (ibbq *Ibbq) enableRealTimeData() error {
 	err := ibbq.writeSetting(realTimeDataEnable)
 	if err == nil {
 		logger.Info("Enabled real-time data sending")
+	}
+	return err
+}
+
+func (ibbq *Ibbq) enableBatteryData() error {
+	logger.Info("Enabling battery data sending")
+	err := ibbq.writeSetting(batteryLevel)
+	if err == nil {
+		logger.Info("Enabled battery data sending")
 	}
 	return err
 }
