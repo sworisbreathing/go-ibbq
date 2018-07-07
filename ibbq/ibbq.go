@@ -73,7 +73,7 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 			err = ibbq.enableRealTimeData()
 		}
 		if err == nil {
-			err = ibbq.enableBatteryData()
+			err = ibbq.enableBatteryData(done)
 		}
 		c <- err
 		close(c)
@@ -214,11 +214,28 @@ func (ibbq *Ibbq) enableRealTimeData() error {
 	return err
 }
 
-func (ibbq *Ibbq) enableBatteryData() error {
+func (ibbq *Ibbq) enableBatteryData(done chan struct{}) error {
 	logger.Info("Enabling battery data sending")
-	err := ibbq.writeSetting(batteryLevel)
-	if err == nil {
-		logger.Info("Enabled battery data sending")
+	var err error
+	if err = ibbq.writeSetting(batteryLevel); err == nil {
+		ticker := time.NewTicker(60 * time.Second)
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					logger.Info("Requesting battery data")
+					err := ibbq.writeSetting(batteryLevel)
+					if err != nil {
+						logger.Error("Unable to request battery level", "err", err)
+						ticker.Stop()
+						return
+					}
+				case <-done:
+					ticker.Stop()
+					return
+				}
+			}
+		}()
 	}
 	return err
 }
