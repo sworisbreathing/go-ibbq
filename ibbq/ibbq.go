@@ -137,8 +137,8 @@ func (ibbq *Ibbq) subscribeToRealTimeData() error {
 func (ibbq *Ibbq) realTimeDataReceived() ble.NotificationHandler {
 	return func(data []byte) {
 		logger.Debug("received real-time data", hex.EncodeToString(data))
-		probe1 := binary.LittleEndian.Uint16(data[0:2]) / 10.0
-		probe2 := binary.LittleEndian.Uint16(data[2:4]) / 10.0
+		probe1 := float64(binary.LittleEndian.Uint16(data[0:2])) / 10
+		probe2 := float64(binary.LittleEndian.Uint16(data[2:4])) / 10
 		logger.Info("Temperature received", "probe1", probe1, "probe2", probe2)
 	}
 }
