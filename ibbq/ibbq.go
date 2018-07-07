@@ -15,12 +15,12 @@ import (
 type Ibbq struct {
 	ctx                         context.Context
 	device                      ble.Device
-	done                        chan struct{}
 	cancelFunc                  func()
 	temperatureReceivedHandler  TemperatureReceivedHandler
 	batteryLevelReceivedHandler BatteryLevelReceivedHandler
 	client                      ble.Client
 	profile                     *ble.Profile
+	disconnected                chan struct{}
 }
 
 // TemperatureReceivedHandler is a callback for temperature readings.
@@ -32,10 +32,10 @@ type TemperatureReceivedHandler func([]float64)
 type BatteryLevelReceivedHandler func(int)
 
 // NewIbbq creates a new Ibbq
-func NewIbbq(ctx context.Context, done chan struct{}, cancelFunc func(), temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler) (ibbq Ibbq, err error) {
+func NewIbbq(ctx context.Context, cancelFunc func(), temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler) (ibbq Ibbq, err error) {
 	d, err := NewDevice("default")
 	ble.SetDefaultDevice(d)
-	return Ibbq{ctx, d, done, cancelFunc, temperatureReceivedHandler, batteryLevelReceivedHandler, nil, nil}, err
+	return Ibbq{ctx, d, cancelFunc, temperatureReceivedHandler, batteryLevelReceivedHandler, nil, nil, nil}, err
 }
 
 func (ibbq *Ibbq) disconnectHandler() {
@@ -44,8 +44,13 @@ func (ibbq *Ibbq) disconnectHandler() {
 	logger.Info("Disconnected", "addr", ibbq.client.Addr().String())
 	ibbq.client = nil
 	ibbq.profile = nil
-	close(ibbq.done)
+	close(ibbq.disconnected)
 	ibbq.cancelFunc()
+}
+
+// Disconnected gets the disconnected channel
+func (ibbq *Ibbq) Disconnected() chan struct{} {
+	return ibbq.disconnected
 }
 
 // Connect connects to an ibbq
@@ -56,6 +61,7 @@ func (ibbq *Ibbq) Connect() error {
 	defer cancel()
 	c := make(chan interface{})
 	logger.Info("Connecting to device")
+	ibbq.disconnected = make(chan struct{})
 	go func() {
 		if client, err = ble.Connect(timeoutContext, filter()); err == nil {
 			logger.Info("Connected to device", "addr", client.Addr())
@@ -245,7 +251,7 @@ func (ibbq *Ibbq) enableBatteryData() error {
 						ticker.Stop()
 						return
 					}
-				case <-ibbq.done:
+				case <-ibbq.disconnected:
 					ticker.Stop()
 					return
 				}

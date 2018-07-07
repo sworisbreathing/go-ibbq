@@ -22,14 +22,13 @@ func main() {
 	logger.Debug("context initialized")
 	var bbq ibbq.Ibbq
 	logger.Debug("instantiating ibbq struct")
-	done := make(chan struct{})
 	temperatureReceived := func(temperatures []float64) {
 		logger.Info("Received temperature data", "temperatures", temperatures)
 	}
 	batteryLevelReceived := func(batteryLevel int) {
 		logger.Info("Received battery data", "batteryPct", strconv.Itoa(batteryLevel))
 	}
-	if bbq, err = ibbq.NewIbbq(ctx, done, cancel, temperatureReceived, batteryLevelReceived); err != nil {
+	if bbq, err = ibbq.NewIbbq(ctx, cancel, temperatureReceived, batteryLevelReceived); err != nil {
 		logger.Fatal("Error creating iBBQ", "err", err)
 		os.Exit(-1)
 	}
@@ -46,5 +45,5 @@ func main() {
 		os.Exit(-1)
 	}
 	logger.Debug("waiting for device to send disconnect signal")
-	<-done
+	<-bbq.Disconnected()
 }
