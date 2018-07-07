@@ -13,31 +13,31 @@ var logger = log.New("main")
 
 func main() {
 	var err error
-	logger.Info("initializing context")
+	logger.Debug("initializing context")
 	ctx1, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	registerInterruptHandler(cancel)
 	ctx := ble.WithSigHandler(ctx1, cancel)
-	logger.Info("context initialized")
+	logger.Debug("context initialized")
 	var bbq ibbq.Ibbq
-	logger.Info("instantiating ibbq struct")
+	logger.Debug("instantiating ibbq struct")
 	done := make(chan struct{})
 	if bbq, err = ibbq.NewIbbq(ctx, done, cancel); err != nil {
-		logger.Fatal("fatal", err)
+		logger.Fatal("Error creating iBBQ", "err", err)
 		os.Exit(-1)
 	}
-	logger.Info("instantiated ibbq struct")
-	logger.Info("connecting to device")
+	logger.Debug("instantiated ibbq struct")
+	logger.Debug("connecting to device")
 	if err = bbq.Connect(); err != nil {
-		logger.Fatal("fatal", err)
+		logger.Fatal("Error connecting to device", "err", err)
 		os.Exit(-1)
 	}
-	logger.Info("Connected to device")
+	logger.Debug("Connected to device")
 	<-ctx.Done()
 	if err = bbq.Disconnect(); err != nil {
-		logger.Fatal("fatal", err)
+		logger.Fatal("Error disconnecting from device", "err", err)
 		os.Exit(-1)
 	}
-	logger.Info("waiting for device to send disconnect signal")
+	logger.Debug("waiting for device to send disconnect signal")
 	<-done
 }

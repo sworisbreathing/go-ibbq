@@ -46,11 +46,12 @@ func (ibbq *Ibbq) Connect() error {
 	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, 15*time.Second)
 	defer cancel()
 	c := make(chan interface{})
+	logger.Info("Connecting to device")
 	go func() {
 		if client, err = ble.Connect(timeoutContext, filter()); err == nil {
-			logger.Info("Connected to device:", client.Addr())
+			logger.Info("Connected to device", "addr", client.Addr())
 			ibbq.client = client
-			logger.Info("Setting up disconnect handler")
+			logger.Debug("Setting up disconnect handler")
 			go ibbq.disconnectHandler()
 			err = ibbq.discoverProfile()
 		}
@@ -84,7 +85,7 @@ func (ibbq *Ibbq) Connect() error {
 		err = timeoutContext.Err()
 	case err := <-c:
 		if err != nil {
-			logger.Error("Error received while connecting:", err)
+			logger.Error("Error received while connecting", "err", err)
 		}
 	}
 	return err
@@ -103,7 +104,7 @@ func (ibbq *Ibbq) login() error {
 	var err error
 	var uuid ble.UUID
 	if uuid, err = ble.Parse(AccountAndVerify); err == nil {
-		logger.Info("logging in to", uuid)
+		logger.Debug("logging in to device", "addr", ibbq.client.Addr(), "uuid", uuid)
 		characteristic := ble.NewCharacteristic(uuid)
 		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
 			err = ibbq.client.WriteCharacteristic(c, Credentials, false)
@@ -122,9 +123,9 @@ func (ibbq *Ibbq) subscribeToRealTimeData() error {
 		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
 			err = ibbq.client.Subscribe(c, false, ibbq.realTimeDataReceived())
 			if err == nil {
-				logger.Info("subscribed")
+				logger.Info("Subscribed to real-time data")
 			} else {
-				logger.Error("error subscribing:", err)
+				logger.Error("Error subscribing to real-time data", "err", err)
 			}
 		} else {
 			err = errors.New("can't find characteristic for real-time data")
@@ -151,12 +152,12 @@ func (ibbq *Ibbq) subscribeToHistoryData() error {
 		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
 			err = ibbq.client.Subscribe(c, false, ibbq.historyDataReceived())
 			if err == nil {
-				logger.Info("subscribed")
+				logger.Info("Subscribed to history data")
 			} else {
-				logger.Error("error subscribing:", err)
+				logger.Error("Error subscribing to history data", "err", err)
 			}
 		} else {
-			err = errors.New("can't find characteristic for history data")
+			err = errors.New("Can't find characteristic for history data")
 		}
 	}
 	return err
@@ -164,7 +165,7 @@ func (ibbq *Ibbq) subscribeToHistoryData() error {
 
 func (ibbq *Ibbq) historyDataReceived() ble.NotificationHandler {
 	return func(data []byte) {
-		logger.Info("received history data", hex.EncodeToString(data))
+		logger.Debug("received history data", hex.EncodeToString(data))
 	}
 }
 
@@ -177,12 +178,12 @@ func (ibbq *Ibbq) subscribeToSettingResults() error {
 		if c := ibbq.profile.FindCharacteristic(characteristic); c != nil {
 			err = ibbq.client.Subscribe(c, false, ibbq.settingResultReceived())
 			if err == nil {
-				logger.Info("subscribed")
+				logger.Info("Subscribed to setting results")
 			} else {
-				logger.Error("error subscribing:", err)
+				logger.Error("Error subscribing to setting results", "err", err)
 			}
 		} else {
-			err = errors.New("can't find characteristic for setting results")
+			err = errors.New("Can't find characteristic for setting results")
 		}
 	}
 	return err
@@ -190,7 +191,7 @@ func (ibbq *Ibbq) subscribeToSettingResults() error {
 
 func (ibbq *Ibbq) settingResultReceived() ble.NotificationHandler {
 	return func(data []byte) {
-		logger.Debug("received setting result:", hex.EncodeToString(data))
+		logger.Debug("Received setting result", "data", hex.EncodeToString(data))
 		switch data[0] {
 		case 0x24:
 			// battery
@@ -223,7 +224,7 @@ func (ibbq *Ibbq) enableBatteryData() error {
 			for {
 				select {
 				case <-ticker.C:
-					logger.Info("Requesting battery data")
+					logger.Debug("Requesting battery data")
 					err := ibbq.writeSetting(batteryLevel)
 					if err != nil {
 						logger.Error("Unable to request battery level", "err", err)
@@ -292,19 +293,12 @@ func filter() ble.AdvFilter {
 
 func advHandler() ble.AdvHandler {
 	return func(a ble.Advertisement) {
-		if a.Connectable() {
-			logger.Debug("[", a.Addr(), "] C", a.RSSI())
-		} else {
-			logger.Debug("[", a.Addr(), "] N ", a.RSSI())
-		}
-		if len(a.LocalName()) > 0 {
-			logger.Debug(" Name:", a.LocalName())
-		}
-		if len(a.Services()) > 0 {
-			logger.Debug("Svcs:", a.Services())
-		}
-		if len(a.ManufacturerData()) > 0 {
-			logger.Debug("MD:", a.ManufacturerData())
-		}
+		logger.Debug("Found advertisement",
+			"address", a.Addr(),
+			"connectable", a.Connectable(),
+			"rssi", a.RSSI(),
+			"name", a.LocalName(),
+			"svcs", a.Services(),
+			"manufacturerData", a.ManufacturerData())
 	}
 }
