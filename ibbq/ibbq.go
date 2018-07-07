@@ -190,7 +190,7 @@ func (ibbq *Ibbq) subscribeToSettingResults() error {
 
 func (ibbq *Ibbq) settingResultReceived() ble.NotificationHandler {
 	return func(data []byte) {
-		logger.Info("received setting result:", hex.EncodeToString(data))
+		logger.Debug("received setting result:", hex.EncodeToString(data))
 		switch data[0] {
 		case 0x24:
 			// battery
