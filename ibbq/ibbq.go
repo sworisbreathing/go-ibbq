@@ -55,6 +55,9 @@ func (ibbq *Ibbq) Connect(done chan struct{}, cancelFunc func()) error {
 			err = ibbq.login()
 		}
 		if err == nil {
+			err = ibbq.configureTemperatureCelsius()
+		}
+		if err == nil {
 			err = ibbq.subscribeToSettingResults()
 		}
 		if err == nil {
@@ -187,6 +190,24 @@ func (ibbq *Ibbq) enableRealTimeData() error {
 	err := ibbq.writeSetting(realTimeDataEnable)
 	if err == nil {
 		logger.Info("Enabled real-time data sending")
+	}
+	return err
+}
+
+func (ibbq *Ibbq) configureTemperatureCelsius() error {
+	logger.Info("Configuring temperature for Celsius")
+	err := ibbq.writeSetting(unitsCelsius)
+	if err == nil {
+		logger.Info("Configured temperature for Celsius")
+	}
+	return err
+}
+
+func (ibbq *Ibbq) configureTemperatureFahrenheit() error {
+	logger.Info("Configuring temperature for Fahrenheit")
+	err := ibbq.writeSetting(unitsFahrenheit)
+	if err == nil {
+		logger.Info("Configured temperature for Fahrenheit")
 	}
 	return err
 }
