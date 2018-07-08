@@ -7,8 +7,14 @@ import (
 
 // Configuration configures our ibbq session
 type Configuration struct {
-	ConnectTimeout         time.Duration
-	BatteryPollingInterval time.Duration
+	ConnectTimeout         time.Duration `description:"Connection timeout"`
+	BatteryPollingInterval time.Duration `description:"Battery level polling interval"`
+}
+
+// DefaultConfiguration is a somewhat sane default.
+var DefaultConfiguration = Configuration{
+	ConnectTimeout:         60 * time.Second,
+	BatteryPollingInterval: 5 * time.Minute,
 }
 
 // NewConfiguration creates a configuration
