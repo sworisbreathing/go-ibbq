@@ -167,6 +167,7 @@ func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, te
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 var connections = []*websocket.Conn{}
