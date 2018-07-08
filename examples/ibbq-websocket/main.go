@@ -38,6 +38,7 @@ func main() {
 		logger.Fatal(err.Error())
 	}
 
+	gin.SetMode(gin.ReleaseMode)
 	if err := s.Run(); err != nil && err != http.ErrServerClosed {
 		logger.Fatal(err.Error())
 	}
