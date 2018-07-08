@@ -53,4 +53,5 @@ func main() {
 	logger.Info("Connected to device")
 	<-ctx.Done()
 	<-done
+	logger.Info("Exiting")
 }
