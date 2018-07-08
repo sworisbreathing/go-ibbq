@@ -117,7 +117,10 @@ func run(config *Configuration) error {
 		}
 		return nil
 	})
-	g.Go(func() error { return srv.ListenAndServe() })
+	g.Go(func() error {
+		logger.Info("Starting websocket server", "port", config.Port)
+		return srv.ListenAndServe()
+	})
 	go func() {
 		<-ctx.Done()
 		logger.Info("shutting down server")
