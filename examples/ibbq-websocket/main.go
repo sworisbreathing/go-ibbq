@@ -97,7 +97,12 @@ func run(config *Configuration) error {
 		}
 	})
 	g.Go(func() error {
-		return startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel)
+		if err := startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel); err != nil {
+			close(batteryLevelChannel)
+			close(tempsChannel)
+			return err
+		}
+		return nil
 	})
 	g.Go(func() error { return srv.ListenAndServe() })
 	go func() {
@@ -143,5 +148,5 @@ func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, te
 	<-ctx.Done()
 	<-done
 	logger.Info("all done")
-	return err
+	return nil
 }
