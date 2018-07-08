@@ -14,6 +14,7 @@ import (
 // Ibbq is an instance of the thermometer
 type Ibbq struct {
 	ctx                         context.Context
+	config                      Configuration
 	device                      ble.Device
 	disconnectedHandler         DisconnectedHandler
 	temperatureReceivedHandler  TemperatureReceivedHandler
@@ -35,10 +36,10 @@ type BatteryLevelReceivedHandler func(int)
 type DisconnectedHandler func()
 
 // NewIbbq creates a new Ibbq
-func NewIbbq(ctx context.Context, disconnectedHandler DisconnectedHandler, temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler) (ibbq Ibbq, err error) {
+func NewIbbq(ctx context.Context, config Configuration, disconnectedHandler DisconnectedHandler, temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler) (ibbq Ibbq, err error) {
 	d, err := NewDevice("default")
 	ble.SetDefaultDevice(d)
-	return Ibbq{ctx, d, disconnectedHandler, temperatureReceivedHandler, batteryLevelReceivedHandler, nil, nil, nil}, err
+	return Ibbq{ctx, config, d, disconnectedHandler, temperatureReceivedHandler, batteryLevelReceivedHandler, nil, nil, nil}, err
 }
 
 func (ibbq *Ibbq) handleDisconnects() {
@@ -60,7 +61,7 @@ func (ibbq *Ibbq) handleContextClosed() {
 func (ibbq *Ibbq) Connect() error {
 	var client ble.Client
 	var err error
-	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, 60*time.Second)
+	timeoutContext, cancel := context.WithTimeout(ibbq.ctx, ibbq.config.ConnectTimeout)
 	defer cancel()
 	c := make(chan interface{})
 	logger.Info("Connecting to device")
@@ -240,29 +241,33 @@ func (ibbq *Ibbq) enableRealTimeData() error {
 }
 
 func (ibbq *Ibbq) enableBatteryData() error {
-	logger.Info("Enabling battery data sending")
-	var err error
-	if err = ibbq.writeSetting(batteryLevel); err == nil {
-		ticker := time.NewTicker(60 * time.Second)
-		go func() {
-			for {
-				select {
-				case <-ticker.C:
-					logger.Debug("Requesting battery data")
-					err := ibbq.writeSetting(batteryLevel)
-					if err != nil {
-						logger.Error("Unable to request battery level", "err", err)
+	if ibbq.config.BatteryPollingInterval > 0 {
+		logger.Info("Enabling battery data sending")
+		var err error
+		if err = ibbq.writeSetting(batteryLevel); err == nil {
+			ticker := time.NewTicker(ibbq.config.BatteryPollingInterval)
+			go func() {
+				for {
+					select {
+					case <-ticker.C:
+						logger.Debug("Requesting battery data")
+						err := ibbq.writeSetting(batteryLevel)
+						if err != nil {
+							logger.Error("Unable to request battery level", "err", err)
+							ticker.Stop()
+							return
+						}
+					case <-ibbq.client.Disconnected():
 						ticker.Stop()
 						return
 					}
-				case <-ibbq.client.Disconnected():
-					ticker.Stop()
-					return
 				}
-			}
-		}()
+			}()
+		}
+		return err
 	}
-	return err
+	logger.Debug("Battery level polling was not enabled in configuration")
+	return nil
 }
 
 func (ibbq *Ibbq) configureTemperatureCelsius() error {

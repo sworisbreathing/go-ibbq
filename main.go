@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/go-ble/ble"
 	"github.com/mgutz/logxi/v1"
@@ -37,7 +38,11 @@ func main() {
 	var bbq ibbq.Ibbq
 	logger.Debug("instantiating ibbq struct")
 	done := make(chan struct{})
-	if bbq, err = ibbq.NewIbbq(ctx, disconnectedHandler(cancel, done), temperatureReceived, batteryLevelReceived); err != nil {
+	var config ibbq.Configuration
+	if config, err = ibbq.NewConfiguration(60*time.Second, 5*time.Minute); err != nil {
+		logger.Fatal("Error creating configuration", "err", err)
+	}
+	if bbq, err = ibbq.NewIbbq(ctx, config, disconnectedHandler(cancel, done), temperatureReceived, batteryLevelReceived); err != nil {
 		logger.Fatal("Error creating iBBQ", "err", err)
 	}
 	logger.Debug("instantiated ibbq struct")
