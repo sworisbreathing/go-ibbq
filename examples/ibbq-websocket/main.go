@@ -3,14 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"reflect"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/containous/flaeg"
 	"github.com/containous/staert"
 	"github.com/gin-gonic/gin"
 	"github.com/go-ble/ble"
+	"github.com/gorilla/websocket"
 	"github.com/mgutz/logxi/v1"
 	"github.com/sworisbreathing/go-iBBQ/ibbq"
 	"golang.org/x/sync/errgroup"
@@ -74,6 +79,11 @@ func run(config *Configuration) error {
 			},
 		)
 	})
+	router.GET("/ws", func(c *gin.Context) {
+		if err := handleWebsocket(c.Writer, c.Request); err != nil {
+			logger.Error(err.Error())
+		}
+	})
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: router,
@@ -83,16 +93,18 @@ func run(config *Configuration) error {
 			select {
 			case t := <-tempsChannel:
 				if t == nil {
-					logger.Warn("temps channel closed")
+					logger.Info("temps channel closed")
 					return nil
 				}
 				temps = t
+				go updateWebsockets(batteryLevel, temps)
 			case bl := <-batteryLevelChannel:
 				if bl == nil {
-					logger.Warn("battery level channel closed")
+					logger.Info("battery level channel closed")
 					return nil
 				}
 				batteryLevel = bl[0]
+				go updateWebsockets(batteryLevel, temps)
 			}
 		}
 	})
@@ -149,4 +161,82 @@ func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, te
 	<-done
 	logger.Info("all done")
 	return nil
+}
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+var connections = []*websocket.Conn{}
+
+var connectionsMutex = &sync.RWMutex{}
+
+func handleWebsocket(w http.ResponseWriter, r *http.Request) error {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return err
+	}
+	connectionsMutex.Lock()
+	connections = append(connections, conn)
+	logger.Debug("Connection added", "connections", connections)
+	connectionsMutex.Unlock()
+	return nil
+}
+
+func connectionClosed(conn *websocket.Conn) {
+	logger.Debug("Connection closed", "conn", conn)
+	connectionsMutex.Lock()
+	for i, c := range connections {
+		if c == conn {
+			copy(connections[i:], connections[i+1:])
+			connections[len(connections)-1] = nil
+			connections = connections[:len(connections)-1]
+		}
+	}
+	logger.Debug("Connection removed", "connections", connections)
+	connectionsMutex.Unlock()
+}
+
+func updateWebsockets(batteryLevel int, temps []float64) {
+	connectionsMutex.RLock()
+	for _, conn := range connections {
+		go func(conn *websocket.Conn) {
+			if err := conn.WriteJSON(
+				gin.H{
+					"batteryLevel": batteryLevel,
+					"temps":        temps,
+				},
+			); err != nil {
+				if isClosedError(err) {
+					connectionClosed(conn)
+				} else {
+					logger.Error("Error writing to websocket", "err", err)
+				}
+			}
+		}(conn)
+	}
+	connectionsMutex.RUnlock()
+}
+
+func isClosedError(err error) bool {
+	logger.Debug(reflect.TypeOf(err).String())
+	if websocket.IsUnexpectedCloseError(err) {
+		return true
+	}
+	switch err.(type) {
+	default:
+		return false
+	case syscall.Errno:
+		if err.(syscall.Errno) == syscall.EPIPE {
+			return true
+		}
+		return false
+	case *net.OpError:
+		err1 := err.(*net.OpError).Err
+		return isClosedError(err1)
+	case *os.SyscallError:
+		err1 := err.(*os.SyscallError).Err
+		return isClosedError(err1)
+	}
 }
