@@ -2,7 +2,7 @@ package ibbq
 
 import (
 	"github.com/go-ble/ble"
-	"github.com/sworisbreathing/go-iBBQ/ibbq/os"
+	"github.com/sworisbreathing/go-ibbq/ibbq/os"
 )
 
 // NewDevice creates a new device

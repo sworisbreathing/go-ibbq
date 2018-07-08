@@ -17,7 +17,7 @@ import (
 	"github.com/go-ble/ble"
 	"github.com/gorilla/websocket"
 	"github.com/mgutz/logxi/v1"
-	"github.com/sworisbreathing/go-iBBQ/ibbq"
+	"github.com/sworisbreathing/go-ibbq/ibbq"
 	"golang.org/x/sync/errgroup"
 )
 

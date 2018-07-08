@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"github.com/sworisbreathing/go-iBBQ/ibbq"
+	"github.com/sworisbreathing/go-ibbq/ibbq"
 )
 
 // Configuration is our app configuration

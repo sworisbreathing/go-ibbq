@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-ble/ble"
 	"github.com/mgutz/logxi/v1"
-	"github.com/sworisbreathing/go-iBBQ/ibbq"
+	"github.com/sworisbreathing/go-ibbq/ibbq"
 )
 
 var logger = log.New("main")
