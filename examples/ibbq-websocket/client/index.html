@@ -39,11 +39,16 @@
 
             websocket.onmessage = function(event) {
                 var data = JSON.parse(event.data);
-                battery_data_element.textContent = data.batteryLevel + " %";
-                clearChildElements(temperature_data_element);
-                for (var i = 0; i < data.temps.length; i++) {
-                    temperature_data_element.appendChild(document.createElement("br"));
-                    temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i]));
+                if (data.status == "Connected") {
+                    battery_data_element.textContent = data.batteryLevel + " %";
+                    clearChildElements(temperature_data_element);
+                    for (var i = 0; i < data.temps.length; i++) {
+                        temperature_data_element.appendChild(document.createElement("br"));
+                        temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i]));
+                    }
+                } else {
+                    clearChildElements(battery_data_element);
+                    clearChildElements(temperature_data_element);
                 }
                 device_status_element.textContent = data.status;
             };
