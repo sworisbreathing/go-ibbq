@@ -45,7 +45,7 @@
                     temperature_data_element.appendChild(document.createElement("br"));
                     temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i]));
                 }
-                device_status_element.textContent = "Connected";
+                device_status_element.textContent = data.status;
             };
 
             websocket.onclose = function(event) {

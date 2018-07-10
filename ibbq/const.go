@@ -35,6 +35,20 @@ const SettingData = "fff5"
 // DeviceName is the name we look for when we scan.
 const DeviceName = "iBBQ"
 
+// Status represents our connection status
+type Status string
+
+const (
+	// Disconnected means we are not connected
+	Disconnected Status = "Disconnected"
+	//Connecting means we are establishing a connection/session
+	Connecting Status = "Connecting"
+	// Connected means we have established a connection/session
+	Connected Status = "Connected"
+	// Disconnecting means we have requested to disconnect and are awaiting acknowledgement
+	Disconnecting Status = "Disconnecting"
+)
+
 var (
 	// Credentials stores our login credentials for the thermometer.
 	Credentials = []byte{0x21, 0x07, 0x06,

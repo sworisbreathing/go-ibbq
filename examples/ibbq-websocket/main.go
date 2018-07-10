@@ -70,6 +70,8 @@ func run(config *Configuration) error {
 	tempsChannel := make(chan []float64)
 	batteryLevel := 0
 	batteryLevelChannel := make(chan []int)
+	status := ibbq.Disconnected
+	statusChannel := make(chan *ibbq.Status)
 	router.GET("/temperatureData", func(c *gin.Context) {
 		c.JSON(
 			http.StatusOK,
@@ -90,6 +92,7 @@ func run(config *Configuration) error {
 		c.JSON(
 			http.StatusOK,
 			gin.H{
+				"status":       status,
 				"batteryLevel": batteryLevel,
 				"temperatures": temps,
 			},
@@ -113,19 +116,29 @@ func run(config *Configuration) error {
 					return nil
 				}
 				temps = t
-				go updateWebsockets(batteryLevel, temps)
+				go updateWebsockets(status, batteryLevel, temps)
 			case bl := <-batteryLevelChannel:
 				if bl == nil {
 					logger.Info("battery level channel closed")
 					return nil
 				}
 				batteryLevel = bl[0]
-				go updateWebsockets(batteryLevel, temps)
+				go updateWebsockets(status, batteryLevel, temps)
+			case s := <-statusChannel:
+				if s == nil {
+					logger.Info("status channel closed")
+					return nil
+				} else if *s != ibbq.Connected {
+					batteryLevel = 0
+					temps = []float64{}
+				}
+				status = *s
+				go updateWebsockets(status, batteryLevel, temps)
 			}
 		}
 	})
 	g.Go(func() error {
-		if err := startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel); err != nil {
+		if err := startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel, statusChannel); err != nil {
 			close(batteryLevelChannel)
 			close(tempsChannel)
 			return err
@@ -148,7 +161,7 @@ func run(config *Configuration) error {
 	return g.Wait()
 }
 
-func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, tempsChannel chan []float64, batteryLevelChannel chan []int) error {
+func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, tempsChannel chan []float64, batteryLevelChannel chan []int, statusChannel chan *ibbq.Status) error {
 	ctx := ble.WithSigHandler(ctx1, cancel)
 	var bbq ibbq.Ibbq
 	done := make(chan struct{})
@@ -170,7 +183,10 @@ func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, te
 	batteryLevelReceived := func(batteryLevel int) {
 		batteryLevelChannel <- []int{batteryLevel}
 	}
-	if bbq, err = ibbq.NewIbbq(ctx, ibbqConfig, disconnectedHandler, temperatureReceived, batteryLevelReceived); err != nil {
+	statusUpdated := func(status ibbq.Status) {
+		statusChannel <- &status
+	}
+	if bbq, err = ibbq.NewIbbq(ctx, ibbqConfig, disconnectedHandler, temperatureReceived, batteryLevelReceived, statusUpdated); err != nil {
 		return err
 	}
 	if err = bbq.Connect(); err != nil {
@@ -218,12 +234,13 @@ func connectionClosed(conn *websocket.Conn) {
 	connectionsMutex.Unlock()
 }
 
-func updateWebsockets(batteryLevel int, temps []float64) {
+func updateWebsockets(status ibbq.Status, batteryLevel int, temps []float64) {
 	connectionsMutex.RLock()
 	for _, conn := range connections {
 		go func(conn *websocket.Conn) {
 			if err := conn.WriteJSON(
 				gin.H{
+					"status":       status,
 					"batteryLevel": batteryLevel,
 					"temps":        temps,
 				},

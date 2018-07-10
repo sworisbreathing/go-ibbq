@@ -33,6 +33,9 @@ func temperatureReceived(temperatures []float64) {
 func batteryLevelReceived(batteryLevel int) {
 	logger.Info("Received battery data", "batteryPct", strconv.Itoa(batteryLevel))
 }
+func statusUpdated(status ibbq.Status) {
+	logger.Info("Status updated", "status", status)
+}
 
 func disconnectedHandler(cancel func(), done chan struct{}) func() {
 	return func() {
@@ -57,7 +60,7 @@ func main() {
 	if config, err = ibbq.NewConfiguration(60*time.Second, 5*time.Minute); err != nil {
 		logger.Fatal("Error creating configuration", "err", err)
 	}
-	if bbq, err = ibbq.NewIbbq(ctx, config, disconnectedHandler(cancel, done), temperatureReceived, batteryLevelReceived); err != nil {
+	if bbq, err = ibbq.NewIbbq(ctx, config, disconnectedHandler(cancel, done), temperatureReceived, batteryLevelReceived, statusUpdated); err != nil {
 		logger.Fatal("Error creating iBBQ", "err", err)
 	}
 	logger.Debug("instantiated ibbq struct")

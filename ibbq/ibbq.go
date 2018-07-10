@@ -34,9 +34,11 @@ type Ibbq struct {
 	disconnectedHandler         DisconnectedHandler
 	temperatureReceivedHandler  TemperatureReceivedHandler
 	batteryLevelReceivedHandler BatteryLevelReceivedHandler
+	statusUpdatedHandler        StatusUpdatedHandler
 	client                      ble.Client
 	profile                     *ble.Profile
 	disconnected                chan struct{}
+	status                      Status
 }
 
 // TemperatureReceivedHandler is a callback for temperature readings.
@@ -50,11 +52,14 @@ type BatteryLevelReceivedHandler func(int)
 // DisconnectedHandler handles disconnection events
 type DisconnectedHandler func()
 
+// StatusUpdatedHandler is a callback for status updates.
+type StatusUpdatedHandler func(Status)
+
 // NewIbbq creates a new Ibbq
-func NewIbbq(ctx context.Context, config Configuration, disconnectedHandler DisconnectedHandler, temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler) (ibbq Ibbq, err error) {
+func NewIbbq(ctx context.Context, config Configuration, disconnectedHandler DisconnectedHandler, temperatureReceivedHandler TemperatureReceivedHandler, batteryLevelReceivedHandler BatteryLevelReceivedHandler, statusUpdatedHandler StatusUpdatedHandler) (ibbq Ibbq, err error) {
 	d, err := NewDevice("default")
 	ble.SetDefaultDevice(d)
-	return Ibbq{ctx, config, d, disconnectedHandler, temperatureReceivedHandler, batteryLevelReceivedHandler, nil, nil, nil}, err
+	return Ibbq{ctx, config, d, disconnectedHandler, temperatureReceivedHandler, batteryLevelReceivedHandler, statusUpdatedHandler, nil, nil, nil, Disconnected}, err
 }
 
 func (ibbq *Ibbq) handleDisconnects() {
@@ -63,6 +68,7 @@ func (ibbq *Ibbq) handleDisconnects() {
 	logger.Info("Disconnected", "addr", ibbq.client.Addr().String())
 	ibbq.client = nil
 	ibbq.profile = nil
+	ibbq.updateStatus(Disconnected)
 	go ibbq.disconnectedHandler()
 }
 
@@ -81,6 +87,7 @@ func (ibbq *Ibbq) Connect() error {
 	c := make(chan interface{})
 	logger.Info("Connecting to device")
 	go func() {
+		ibbq.updateStatus(Connecting)
 		if client, err = ble.Connect(timeoutContext, filter()); err == nil {
 			logger.Info("Connected to device", "addr", client.Addr())
 			ibbq.client = client
@@ -118,9 +125,13 @@ func (ibbq *Ibbq) Connect() error {
 	case <-timeoutContext.Done():
 		logger.Error("timeout while connecting")
 		err = timeoutContext.Err()
+		ibbq.updateStatus(Disconnected)
 	case err := <-c:
 		if err != nil {
 			logger.Error("Error received while connecting", "err", err)
+			ibbq.updateStatus(Disconnected)
+		} else {
+			ibbq.updateStatus(Connected)
 		}
 	}
 	return err
@@ -147,6 +158,13 @@ func (ibbq *Ibbq) login() error {
 		}
 	}
 	return err
+}
+
+func (ibbq *Ibbq) updateStatus(status Status) {
+	ibbq.status = status
+	if ibbq.statusUpdatedHandler != nil {
+		go ibbq.statusUpdatedHandler(status)
+	}
 }
 
 func (ibbq *Ibbq) subscribeToRealTimeData() error {
@@ -324,6 +342,7 @@ func (ibbq *Ibbq) Disconnect() error {
 		err = errors.New("Not connected")
 	} else {
 		logger.Info("Disconnecting")
+		ibbq.updateStatus(Disconnecting)
 		err = ibbq.client.CancelConnection()
 	}
 	return err
