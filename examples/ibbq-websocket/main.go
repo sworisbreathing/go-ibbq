@@ -38,6 +38,12 @@ import (
 
 var logger = log.New("main")
 
+var done = make(chan struct{})
+var tempsChannel = make(chan []float64)
+var batteryLevelChannel = make(chan []int)
+var statusChannel = make(chan *ibbq.Status)
+var shutdown = false
+
 func main() {
 	command := newCommand(run)
 	s := staert.NewStaert(command)
@@ -67,11 +73,8 @@ func run(config *Configuration) error {
 	router := gin.Default()
 	var g errgroup.Group
 	temps := []float64{}
-	tempsChannel := make(chan []float64)
 	batteryLevel := 0
-	batteryLevelChannel := make(chan []int)
 	status := ibbq.Disconnected
-	statusChannel := make(chan *ibbq.Status)
 	router.GET("/temperatureData", func(c *gin.Context) {
 		c.JSON(
 			http.StatusOK,
@@ -134,37 +137,53 @@ func run(config *Configuration) error {
 				}
 				status = *s
 				go updateWebsockets(status, batteryLevel, temps)
+			case <-done:
+				logger.Info("shutdown detected")
+				close(tempsChannel)
+				close(batteryLevelChannel)
+				close(statusChannel)
+				return nil
 			}
 		}
 	})
 	g.Go(func() error {
-		if err := startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel, statusChannel); err != nil {
-			close(batteryLevelChannel)
-			close(tempsChannel)
-			return err
+		for {
+			if shutdown {
+				logger.Info("shutdown detected")
+				return nil
+			}
+			logger.Info("Connecting to ibbq")
+			if err := startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel, statusChannel); err != nil {
+				logger.Error("error connecting")
+				time.Sleep(5 * time.Second)
+			}
 		}
-		return nil
 	})
 	g.Go(func() error {
 		logger.Info("Starting websocket server", "port", config.Port)
-		return srv.ListenAndServe()
+		err := srv.ListenAndServe()
+		logger.Info("server is done")
+		return err
 	})
 	go func() {
 		<-ctx.Done()
 		logger.Info("shutting down server")
 		sdc, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		close(done)
+		shutdown = true
 		if err := srv.Shutdown(sdc); err != nil {
 			logger.Fatal("Shutdown failed")
 		}
+		logger.Info("Server shut down")
 	}()
 	return g.Wait()
 }
 
-func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, tempsChannel chan []float64, batteryLevelChannel chan []int, statusChannel chan *ibbq.Status) error {
-	ctx := ble.WithSigHandler(ctx1, cancel)
+func startIbbq(ctx1 context.Context, cancel1 func(), config IbbqConfiguration, tempsChannel chan []float64, batteryLevelChannel chan []int, statusChannel chan *ibbq.Status) error {
+	ctx, cancel := context.WithCancel(ble.WithSigHandler(ctx1, cancel1))
+	defer cancel()
 	var bbq ibbq.Ibbq
-	done := make(chan struct{})
 	var ibbqConfig ibbq.Configuration
 	var err error
 	if ibbqConfig, err = config.asConfig(); err != nil {
@@ -173,9 +192,6 @@ func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, te
 	disconnectedHandler := func() {
 		logger.Info("Disconnected")
 		cancel()
-		close(done)
-		close(tempsChannel)
-		close(batteryLevelChannel)
 	}
 	temperatureReceived := func(temps []float64) {
 		tempsChannel <- temps
@@ -190,11 +206,11 @@ func startIbbq(ctx1 context.Context, cancel func(), config IbbqConfiguration, te
 		return err
 	}
 	if err = bbq.Connect(); err != nil {
+		bbq.Disconnect()
 		return err
 	}
+	logger.Info("Connected to ibbq")
 	<-ctx.Done()
-	<-done
-	logger.Info("all done")
 	return nil
 }
 
