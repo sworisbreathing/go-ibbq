@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>iBBQ Websocket Client Example</title>
+    </head>
+    <body>
+        <div id="websocket_status_parent">
+            <b>Websocket:</b>
+            <span id="websocket_status"></span>
+        </div>
+        <div id="device_status_parent">
+            <b>Device:</b>
+            <span id="device_status"></span>
+        </div>
+        <div id="battery">
+            <b>Battery</b>
+            <span id="battery_data"></span>
+        </div>
+        <div id="temperatures">
+            <b>Temperatures</b>
+            <span id="temperature_data"></span>
+        </div>
+        <script>
+
+            function clearChildElements(element) {
+                while (element.firstChild) {
+                    element.removeChild(element.firstChild);
+                }
+            }
+
+            var websocket_status_element = document.getElementById("websocket_status");
+            var device_status_element = document.getElementById("device_status");
+            var battery_data_element = document.getElementById("battery_data");
+            var temperature_data_element = document.getElementById("temperature_data");
+
+            //+ window.location.hostname
+            var websocket = new WebSocket("ws://localhost"  + ":8080/ws");
+
+            websocket.onmessage = function(event) {
+                var data = JSON.parse(event.data);
+                battery_data_element.textContent = data.batteryLevel + " %";
+                clearChildElements(temperature_data_element);
+                for (var i = 0; i < data.temps.length; i++) {
+                    temperature_data_element.appendChild(document.createElement("br"));
+                    temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i]));
+                }
+                device_status_element.textContent = "Connected";
+            };
+
+            websocket.onclose = function(event) {
+                websocket_status_element.textContent = "Not Connected";
+                device_status_element.textContent = "Unknown";
+                clearChildElements(battery_data_element);
+                clearChildElements(temperature_data_element);
+            }
+
+            websocket.onopen = function(event) {
+                websocket_status_element.textContent = "Connected";
+            }
+
+            websocket.onerror = function(event) {
+                console.error(error);
+            }
+        </script>
+    </body>
+</html>
