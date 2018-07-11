@@ -2,27 +2,57 @@
 <html>
     <head>
         <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>iBBQ Websocket Client Example</title>
+        <style>
+            body.not_connected {
+                background-color: #3d0d0d;
+            }
+            body.connected {
+                background-color: #0d3d0d;
+            }
+            body {
+                color: #ffffff;
+                font-family: Verdana, Geneva, Tahoma, sans-serif;
+            }
+            span.field_name {
+                font-size: 5vw;
+                padding: 1%;
+                display: inline-block;
+                width: 30%;
+                vertical-align: top;
+            }
+            span.field_value {
+                text-align: right;
+                font-size: 5vw;
+                display: inline-block;
+                width: 65%;
+            }
+            div.device_data {
+                width: 100%;
+            }
+        </style>
     </head>
-    <body>
-        <div id="websocket_status_parent">
-            <b>Websocket:</b>
-            <span id="websocket_status">Not Connected</span>
+    <body id="body">
+        <div class="device_data" id="battery">
+            <span class="field_name">Battery:</span>
+            <span class="field_value" id="battery_data"></span>
         </div>
-        <div id="device_status_parent">
-            <b>Device:</b>
-            <span id="device_status">Unknown</span>
+        <div class="device_data" id="temperatures">
+            <span class="field_name">Temperatures:</span>
+            <span class="field_value" id="temperature_data"></span>
         </div>
-        <div id="battery">
-            <b>Battery</b>
-            <span id="battery_data"></span>
+        <div class="device_data" id="device_status_parent">
+            <span class="field_name">Device:</span>
+            <span class="field_value" id="device_status">Unknown</span>
         </div>
-        <div id="temperatures">
-            <b>Temperatures</b>
-            <span id="temperature_data"></span>
+        <div class="device_data" id="websocket_status_parent">
+            <span class="field_name">Websocket:</span>
+            <span class="field_value" id="websocket_status">Not Connected</span>
         </div>
         <script>
 
+            document.getElementById("body").className = "not_connected";
             function fahrenheit(celsius) {
                 return Math.round(1.8 * celsius + 32);
             }
@@ -55,12 +85,16 @@
                         battery_data_element.textContent = data.batteryLevel + " %";
                         clearChildElements(temperature_data_element);
                         for (var i = 0; i < data.temps.length; i++) {
-                            temperature_data_element.appendChild(document.createElement("br"));
+                            if (i > 0) {
+                                temperature_data_element.appendChild(document.createElement("br"));
+                            }
                             temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i] + " C (" + fahrenheit(data.temps[i]) + " F)"));
                         }
+                        document.getElementById("body").className = "connected";
                     } else {
                         clearChildElements(battery_data_element);
                         clearChildElements(temperature_data_element);
+                        document.getElementById("body").className = "not_connected";
                     }
                     device_status_element.textContent = data.status;
                 };
@@ -71,6 +105,7 @@
                     device_status_element.textContent = "Unknown";
                     clearChildElements(battery_data_element);
                     clearChildElements(temperature_data_element);
+                    document.getElementById("body").className = "not_connected";
                     setTimeout(connectWebsocket, 5000);
                 }
 
