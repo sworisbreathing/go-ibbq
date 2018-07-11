@@ -106,6 +106,7 @@ func run(config *Configuration) error {
 			logger.Error(err.Error())
 		}
 	})
+	router.StaticFile("/", "client/index.html")
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: router,

@@ -69,7 +69,7 @@
             var temperature_data_element = document.getElementById("temperature_data");
 
             function createWebsocket() {
-                return new WebSocket("ws://localhost"  + ":8080/ws");
+                return new WebSocket("ws://" + window.location.host + "/ws");
             }
 
             function connectWebsocket() {
