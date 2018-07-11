@@ -7,11 +7,11 @@
     <body>
         <div id="websocket_status_parent">
             <b>Websocket:</b>
-            <span id="websocket_status"></span>
+            <span id="websocket_status">Not Connected</span>
         </div>
         <div id="device_status_parent">
             <b>Device:</b>
-            <span id="device_status"></span>
+            <span id="device_status">Unknown</span>
         </div>
         <div id="battery">
             <b>Battery</b>
@@ -34,38 +34,58 @@
             var battery_data_element = document.getElementById("battery_data");
             var temperature_data_element = document.getElementById("temperature_data");
 
-            //+ window.location.hostname
-            var websocket = new WebSocket("ws://localhost"  + ":8080/ws");
+            function createWebsocket() {
+                return new WebSocket("ws://localhost"  + ":8080/ws");
+            }
 
-            websocket.onmessage = function(event) {
-                var data = JSON.parse(event.data);
-                if (data.status == "Connected") {
-                    battery_data_element.textContent = data.batteryLevel + " %";
-                    clearChildElements(temperature_data_element);
-                    for (var i = 0; i < data.temps.length; i++) {
-                        temperature_data_element.appendChild(document.createElement("br"));
-                        temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i]));
+            function connectWebsocket() {
+                websocket = createWebsocket();
+                registerWebsocketListeners(websocket);
+            }
+
+            function registerWebsocketListeners(websocket) {
+                websocket.onmessage = function(event) {
+                    var data = JSON.parse(event.data);
+                    if (data.status == "Connected") {
+                        battery_data_element.textContent = data.batteryLevel + " %";
+                        clearChildElements(temperature_data_element);
+                        for (var i = 0; i < data.temps.length; i++) {
+                            temperature_data_element.appendChild(document.createElement("br"));
+                            temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i]));
+                        }
+                    } else {
+                        clearChildElements(battery_data_element);
+                        clearChildElements(temperature_data_element);
                     }
-                } else {
+                    device_status_element.textContent = data.status;
+                };
+
+                websocket.onclose = function(event) {
+                    console.info("websocket disconnected")
+                    websocket_status_element.textContent = "Not Connected";
+                    device_status_element.textContent = "Unknown";
                     clearChildElements(battery_data_element);
                     clearChildElements(temperature_data_element);
+                    connectWebsocket();
                 }
-                device_status_element.textContent = data.status;
-            };
 
-            websocket.onclose = function(event) {
-                websocket_status_element.textContent = "Not Connected";
-                device_status_element.textContent = "Unknown";
-                clearChildElements(battery_data_element);
-                clearChildElements(temperature_data_element);
+                websocket.onopen = function(event) {
+                    websocket_status_element.textContent = "Connected";
+                }
+
+                websocket.onerror = function(event) {
+                    console.error(event);
+                    if (websocket.readyState != websocket.OPEN) {
+                        connectWebsocket();
+                    }
+                }
             }
 
-            websocket.onopen = function(event) {
-                websocket_status_element.textContent = "Connected";
-            }
-
-            websocket.onerror = function(event) {
-                console.error(error);
+            //+ window.location.hostname
+            document.onreadystatechange = function(){
+                if (document.readyState === "complete") {
+                    connectWebsocket();
+                }
             }
         </script>
     </body>
