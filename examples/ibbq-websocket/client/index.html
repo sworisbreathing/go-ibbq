@@ -39,6 +39,7 @@
             }
 
             function connectWebsocket() {
+                console.info("Connecting websocket");
                 websocket = createWebsocket();
                 registerWebsocketListeners(websocket);
             }
@@ -66,7 +67,7 @@
                     device_status_element.textContent = "Unknown";
                     clearChildElements(battery_data_element);
                     clearChildElements(temperature_data_element);
-                    connectWebsocket();
+                    setTimeout(connectWebsocket, 5000);
                 }
 
                 websocket.onopen = function(event) {
@@ -75,9 +76,6 @@
 
                 websocket.onerror = function(event) {
                     console.error(event);
-                    if (websocket.readyState != websocket.OPEN) {
-                        connectWebsocket();
-                    }
                 }
             }
 
