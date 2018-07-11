@@ -23,6 +23,10 @@
         </div>
         <script>
 
+            function fahrenheit(celsius) {
+                return Math.round(1.8 * celsius + 32);
+            }
+
             function clearChildElements(element) {
                 while (element.firstChild) {
                     element.removeChild(element.firstChild);
@@ -52,7 +56,7 @@
                         clearChildElements(temperature_data_element);
                         for (var i = 0; i < data.temps.length; i++) {
                             temperature_data_element.appendChild(document.createElement("br"));
-                            temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i]));
+                            temperature_data_element.appendChild(document.createTextNode("Probe " + (i+1) + ": " + data.temps[i] + " C (" + fahrenheit(data.temps[i]) + " F)"));
                         }
                     } else {
                         clearChildElements(battery_data_element);
