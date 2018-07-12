@@ -8,6 +8,12 @@
 $ GOOS=linux go build
 ```
 
+### Linux (Raspberry Pi, etc.)
+
+```bash
+$ GOOS=linux GOARCH=arm go build
+```
+
 ### OS X
 
 ```bash
