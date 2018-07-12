@@ -1,5 +1,7 @@
 # go-iBBQ Example WebSocket Server
 
+![Screenshot](./screenshot.png)
+
 ## Building
 
 ### Linux
