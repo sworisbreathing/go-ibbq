@@ -56,3 +56,63 @@ Sec-WebSocket-Accept: qGEgH3En71di5rrssAZTmtRTyFk=
 ?${"batteryLevel":93,"temps":[21,21]}
 ...
 ```
+
+## Install as a service on Raspberry Pi
+
+(tested successfully on Raspbian 9)
+
+### Create the user and the install directory
+
+(this only needs to be done the first time you install)
+
+```bash
+# useradd --comment 'ibbq websocket server user' --system --shell /usr/sbin/nologin ibbq
+# mkdir -p /opt/ibbq-websocket
+# chown -R ibbq:ibbq /opt/ibbq-websocket
+```
+
+### Setup configuration and Systemd service
+
+(this only needs to be done the first time you install)
+
+In `/opt/ibbq-websocket/ibbq-websocket.toml`:
+```
+port = 80
+```
+
+In `/etc/systemd/system/ibbq-websocket.service`:
+```
+[Unit]
+Description=iBBQ Websocket Server
+After=network.target
+
+[Service]
+Type=simple
+User=ibbq
+WorkingDirectory=/opt/ibbq-websocket
+Environment="LOGXI=main=INF"
+ExecStart=/opt/ibbq-websocket/ibbq-websocket
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# systemctl daemon-reload
+# systemctl enable ibbq-websocket.service
+```
+
+### Install the binary and configure permissions
+
+```bash
+# cp ibbq-websocket /opt/ibbq-websocket/ibbq-websocket
+# chown -R ibbq:ibbq /opt/ibbq-websocket
+# setcap 'cap_net_bind_service,cap_net_admin,cap_net_raw+eip' /opt/ibbq-websocket/ibbq-websocket
+```
+
+### Start the service
+
+```bash
+# systemctl start ibbq-websocket.service
+```
