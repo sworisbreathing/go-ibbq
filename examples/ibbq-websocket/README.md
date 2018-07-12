@@ -93,6 +93,7 @@ WorkingDirectory=/opt/ibbq-websocket
 Environment="LOGXI=main=INF"
 ExecStart=/opt/ibbq-websocket/ibbq-websocket
 Restart=on-failure
+AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_ADMIN CAP_NET_RAW
 
 [Install]
 WantedBy=multi-user.target
@@ -108,7 +109,6 @@ WantedBy=multi-user.target
 ```bash
 # cp ibbq-websocket /opt/ibbq-websocket/ibbq-websocket
 # chown -R ibbq:ibbq /opt/ibbq-websocket
-# setcap 'cap_net_bind_service,cap_net_admin,cap_net_raw+eip' /opt/ibbq-websocket/ibbq-websocket
 ```
 
 ### Start the service
