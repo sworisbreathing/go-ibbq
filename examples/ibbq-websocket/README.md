@@ -101,6 +101,8 @@ WantedBy=multi-user.target
 
 ```bash
 # systemctl daemon-reload
+# systemctl disable bluetooth.service
+# systemctl stop bluetooth.service
 # systemctl enable ibbq-websocket.service
 ```
 
