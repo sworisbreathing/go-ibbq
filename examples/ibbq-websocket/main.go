@@ -154,9 +154,12 @@ func run(config *Configuration) error {
 				return nil
 			}
 			logger.Info("Connecting to ibbq")
-			if err := startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel, statusChannel); err != nil {
-				logger.Error("error connecting")
-				time.Sleep(5 * time.Second)
+			if bbq, err := startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel, statusChannel); err != nil {
+				logger.Error("error connecting", "err", err)
+				if bbq != nil {
+					bbq.Disconnect()
+				}
+				time.Sleep(30 * time.Second)
 			}
 		}
 	})
@@ -181,14 +184,14 @@ func run(config *Configuration) error {
 	return g.Wait()
 }
 
-func startIbbq(ctx1 context.Context, cancel1 func(), config IbbqConfiguration, tempsChannel chan []float64, batteryLevelChannel chan []int, statusChannel chan *ibbq.Status) error {
+func startIbbq(ctx1 context.Context, cancel1 func(), config IbbqConfiguration, tempsChannel chan []float64, batteryLevelChannel chan []int, statusChannel chan *ibbq.Status) (*ibbq.Ibbq, error) {
 	ctx, cancel := context.WithCancel(ble.WithSigHandler(ctx1, cancel1))
 	defer cancel()
 	var bbq ibbq.Ibbq
 	var ibbqConfig ibbq.Configuration
 	var err error
 	if ibbqConfig, err = config.asConfig(); err != nil {
-		return err
+		return nil, err
 	}
 	disconnectedHandler := func() {
 		logger.Info("Disconnected")
@@ -204,15 +207,15 @@ func startIbbq(ctx1 context.Context, cancel1 func(), config IbbqConfiguration, t
 		statusChannel <- &status
 	}
 	if bbq, err = ibbq.NewIbbq(ctx, ibbqConfig, disconnectedHandler, temperatureReceived, batteryLevelReceived, statusUpdated); err != nil {
-		return err
+		return nil, err
 	}
 	if err = bbq.Connect(); err != nil {
 		bbq.Disconnect()
-		return err
+		return &bbq, err
 	}
 	logger.Info("Connected to ibbq")
 	<-ctx.Done()
-	return nil
+	return &bbq, nil
 }
 
 var upgrader = websocket.Upgrader{

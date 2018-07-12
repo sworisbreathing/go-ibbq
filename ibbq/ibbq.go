@@ -68,6 +68,7 @@ func (ibbq *Ibbq) handleDisconnects() {
 	logger.Info("Disconnected", "addr", ibbq.client.Addr().String())
 	ibbq.client = nil
 	ibbq.profile = nil
+	ibbq.device.Stop()
 	ibbq.updateStatus(Disconnected)
 	go ibbq.disconnectedHandler()
 }
