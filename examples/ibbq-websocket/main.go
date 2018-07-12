@@ -157,7 +157,7 @@ func run(config *Configuration) error {
 			if bbq, err := startIbbq(ctx, cancel, config.IbbqConfiguration, tempsChannel, batteryLevelChannel, statusChannel); err != nil {
 				logger.Error("error connecting", "err", err)
 				if bbq != nil {
-					bbq.Disconnect()
+					bbq.Disconnect(true)
 				}
 				time.Sleep(30 * time.Second)
 			}
@@ -210,7 +210,6 @@ func startIbbq(ctx1 context.Context, cancel1 func(), config IbbqConfiguration, t
 		return nil, err
 	}
 	if err = bbq.Connect(); err != nil {
-		bbq.Disconnect()
 		return &bbq, err
 	}
 	logger.Info("Connected to ibbq")

@@ -76,7 +76,7 @@ func (ibbq *Ibbq) handleDisconnects() {
 func (ibbq *Ibbq) handleContextClosed() {
 	logger.Debug("waiting for context to close")
 	<-ibbq.ctx.Done()
-	ibbq.Disconnect()
+	ibbq.Disconnect(false)
 }
 
 // Connect connects to an ibbq
@@ -337,14 +337,28 @@ func (ibbq *Ibbq) writeSetting(settingValue []byte) error {
 }
 
 // Disconnect disconnects from an ibbq
-func (ibbq *Ibbq) Disconnect() error {
+func (ibbq *Ibbq) Disconnect(force bool) error {
 	var err error
 	if ibbq.client == nil {
 		err = errors.New("Not connected")
+		if ibbq.device != nil && force {
+			ibbq.client = nil
+			ibbq.profile = nil
+			err = ibbq.device.Stop()
+			ibbq.updateStatus(Disconnected)
+			go ibbq.disconnectedHandler()
+		}
 	} else {
 		logger.Info("Disconnecting")
 		ibbq.updateStatus(Disconnecting)
 		err = ibbq.client.CancelConnection()
+		if ibbq.device != nil && force {
+			ibbq.client = nil
+			ibbq.profile = nil
+			err = ibbq.device.Stop()
+			ibbq.updateStatus(Disconnected)
+			go ibbq.disconnectedHandler()
+		}
 	}
 	return err
 }
