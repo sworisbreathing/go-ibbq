@@ -32,14 +32,16 @@ var DefaultConfiguration = &Configuration{
 	IbbqConfiguration: IbbqConfiguration{
 		ConnectTimeout:         int(ibbq.DefaultConfiguration.ConnectTimeout / time.Second),
 		BatteryPollingInterval: int(ibbq.DefaultConfiguration.BatteryPollingInterval / time.Second),
+		TemperatureUnits:       "f",
 	},
 	Port: 8080,
 }
 
 // IbbqConfiguration is our ibbq configuration
 type IbbqConfiguration struct {
-	ConnectTimeout         int `description:"Connect timeout (in seconds)"`
-	BatteryPollingInterval int `description:"Battery polling interval (in seconds)"`
+	ConnectTimeout         int    `description:"Connect timeout (in seconds)"`
+	BatteryPollingInterval int    `description:"Battery polling interval (in seconds)"`
+	TemperatureUnits       string `description:"Temperature units ('c'/'celsius' or 'f'/'fahrenheit', case-insensitive)"`
 }
 
 func (c *IbbqConfiguration) asConfig() (ibbq.Configuration, error) {

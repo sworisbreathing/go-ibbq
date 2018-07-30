@@ -17,11 +17,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -213,6 +215,19 @@ func startIbbq(ctx1 context.Context, cancel1 func(), config IbbqConfiguration, t
 		return &bbq, err
 	}
 	logger.Info("Connected to ibbq")
+	tempUnits := strings.ToLower(config.TemperatureUnits)
+	if tempUnits == "c" || tempUnits == "celsius" {
+		if err = bbq.ConfigureTemperatureCelsius(); err != nil {
+			return &bbq, err
+		}
+	} else if tempUnits == "f" || tempUnits == "fahrenheit" {
+		if err = bbq.ConfigureTemperatureFahrenheit(); err != nil {
+			return &bbq, err
+		}
+	} else {
+		err = errors.New("Unrecognized temperature units: " + config.TemperatureUnits)
+		return &bbq, err
+	}
 	<-ctx.Done()
 	return &bbq, nil
 }

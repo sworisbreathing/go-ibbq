@@ -105,7 +105,7 @@ func (ibbq *Ibbq) Connect() error {
 			err = ibbq.subscribeToSettingResults()
 		}
 		if err == nil {
-			err = ibbq.configureTemperatureCelsius()
+			err = ibbq.ConfigureTemperatureCelsius()
 		}
 		if err == nil {
 			err = ibbq.subscribeToRealTimeData()
@@ -304,7 +304,9 @@ func (ibbq *Ibbq) enableBatteryData() error {
 	return nil
 }
 
-func (ibbq *Ibbq) configureTemperatureCelsius() error {
+// ConfigureTemperatureCelsius changes the device to display temperatures in Celsius on the screen.
+// It does not change the units sent back over the wire, however, which are always in Celsius.
+func (ibbq *Ibbq) ConfigureTemperatureCelsius() error {
 	logger.Info("Configuring temperature for Celsius")
 	err := ibbq.writeSetting(unitsCelsius)
 	if err == nil {
@@ -313,7 +315,9 @@ func (ibbq *Ibbq) configureTemperatureCelsius() error {
 	return err
 }
 
-func (ibbq *Ibbq) configureTemperatureFahrenheit() error {
+// ConfigureTemperatureFahrenheit changes the device to display temperatures in Fahrenheit on the screen.
+// It does not change the units sent back over the wire, however, which are always in Celsius.
+func (ibbq *Ibbq) ConfigureTemperatureFahrenheit() error {
 	logger.Info("Configuring temperature for Fahrenheit")
 	err := ibbq.writeSetting(unitsFahrenheit)
 	if err == nil {
