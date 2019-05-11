@@ -254,10 +254,10 @@ func (ibbq *Ibbq) settingResultReceived() ble.NotificationHandler {
 		switch data[0] {
 		case 0x24:
 			// battery
-			currentVoltage := int(binary.LittleEndian.Uint16(data[1:3]))
-			maxVoltage := int(binary.LittleEndian.Uint16(data[3:5]))
+			currentVoltage := int(binary.BigEndian.Uint16(data[1:3]))
+			maxVoltage := int(binary.BigEndian.Uint16(data[3:5]))
 			if maxVoltage == 0 {
-				maxVoltage = 6550
+				maxVoltage = 65535
 			}
 			batteryPct := 100 * currentVoltage / maxVoltage
 			go ibbq.batteryLevelReceivedHandler(batteryPct)
