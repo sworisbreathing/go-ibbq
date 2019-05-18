@@ -7,19 +7,19 @@
 ### Linux
 
 ```bash
-$ GOOS=linux go build
+$ GOOS=linux go build -o ibbq-websocket
 ```
 
 ### Linux (Raspberry Pi, etc.)
 
 ```bash
-$ GOOS=linux GOARCH=arm go build
+$ GOOS=linux GOARCH=arm go build -o ibbq-websocket
 ```
 
 ### OS X
 
 ```bash
-$ GOOS=darwin go build
+$ GOOS=darwin go build -o ibbq-websocket
 ```
 
 ## Usage
