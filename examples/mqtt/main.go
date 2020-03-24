@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"time"
 
 	"github.com/go-ble/ble"
@@ -41,7 +40,6 @@ var mqttPublishHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.M
 }
 
 func temperatureReceived(temperatures []float64) {
-	logger.Info("Received temperature data", "temperatures", temperatures)
 	m, err := json.Marshal(temperatures)
 	if err != nil {
 		logger.Fatal("Can't encode to JSON", "err", err)
@@ -50,7 +48,6 @@ func temperatureReceived(temperatures []float64) {
 	token.Wait()
 }
 func batteryLevelReceived(batteryLevel int) {
-	logger.Info("Received battery data", "batteryPct", strconv.Itoa(batteryLevel))
 	m, err := json.Marshal(batteryLevel)
 	if err != nil {
 		logger.Fatal("Can't encode to JSON", "err", err)
