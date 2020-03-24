@@ -1,4 +1,4 @@
-module github.com/sworisbreathing/go-ibbq/v2/examples/datalogger
+module github.com/sworisbreathing/go-ibbq/v2/examples/mqtt
 
 go 1.12
 
